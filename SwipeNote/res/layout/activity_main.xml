@@ -1,0 +1,42 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/gray333" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginLeft="8dp"
+            android:gravity="center_vertical"
+            android:text="@string/app_name"
+            android:textAppearance="@android:style/TextAppearance.Large" />
+
+        <ImageButton
+            android:id="@+id/btn_new_note"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="right"
+            android:src="@drawable/ico_new" />
+    </FrameLayout>
+
+    <ListView
+        android:id="@+id/list_note"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@android:id/empty"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginLeft="8dp"
+        android:gravity="center_vertical"
+        android:text="@string/emptyList"
+        android:textAppearance="@android:style/TextAppearance.Large" />
+
+</LinearLayout>

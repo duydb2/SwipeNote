@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_vertical"
+    android:orientation="horizontal" >
+
+    <ImageView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ico_note" />
+
+    <TextView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/text_note_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textAppearance="@android:style/TextAppearance.Medium" />
+
+</LinearLayout>
+
+<!--
+
+Above layout can be replaced by:
+
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/text_note_title"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:drawableLeft="@drawable/ico_note"
+    android:gravity="center_vertical"
+    android:padding="8dp"
+    android:text="@string/app_name"
+    android:textAppearance="@android:style/TextAppearance.Medium" />Try for yourself
+-->
+

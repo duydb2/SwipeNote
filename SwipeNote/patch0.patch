@@ -1,0 +1,442 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index b8087d1..92f5432 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -13,7 +13,7 @@
+         android:theme="@style/AppTheme" >
+         <activity
+             android:name=".MainActivity"
+-            android:label="@string/title_activity_main" >
++            android:label="@string/app_name" >
+             <intent-filter>
+                 <action android:name="android.intent.action.MAIN" />
+ 
+diff --git a/res/layout/activity_main.xml b/res/layout/activity_main.xml
+index c6cb1e1..c4aac29 100644
+--- a/res/layout/activity_main.xml
++++ b/res/layout/activity_main.xml
+@@ -30,4 +30,13 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent" />
+ 
++    <TextView
++        android:id="@android:id/empty"
++        android:layout_width="wrap_content"
++        android:layout_height="48dp"
++        android:layout_marginLeft="8dp"
++        android:gravity="center_vertical"
++        android:text="@string/emptyList"
++        android:textAppearance="@android:style/TextAppearance.Large" />
++
+ </LinearLayout>
+\ No newline at end of file
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index 05228b5..aa0d6c3 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -3,10 +3,18 @@
+     <string name="app_name">Super Note</string>
+     <string name="hello_world">Hello world!</string>
+     <string name="menu_settings">Settings</string>
+-    <string name="title_activity_main">MainActivity</string>
++    <string name="emptyList">empty</string>
+     <string name="title">Title</string>
+     <string name="title_hint">Note title</string>
+     <string name="content">Content</string>
+     <string name="content_hint">Note content</string>
++    <string name="yes">yes</string>
++    <string name="no">No</string>
++
++    <!-- string for alertDialog -->
++    <string name="dialog_title">Confirm</string>
++    <string name="dialog_confirm_save_message">Are you sure you want to exit.\n Do you want to save?</string>
++    <string name="dialog_confirm_delete_message">Are you sure you want to delete?</string>
++    <string name="dialog_alter_empty_message">Your title is empty. Please, enter your title.</string>
+ 
+ </resources>
+\ No newline at end of file
+diff --git a/src/com/anttek/supernote/MainActivity.java b/src/com/anttek/supernote/MainActivity.java
+index 7b7d929..48b8807 100644
+--- a/src/com/anttek/supernote/MainActivity.java
++++ b/src/com/anttek/supernote/MainActivity.java
+@@ -1,51 +1,140 @@
+ package com.anttek.supernote;
+ 
++import java.util.ArrayList;
++
+ import android.app.Activity;
++import android.app.AlertDialog;
++import android.app.Dialog;
++import android.content.DialogInterface;
+ import android.content.Intent;
+ import android.os.Bundle;
+ import android.view.View;
+ import android.view.View.OnClickListener;
+ import android.widget.AdapterView;
+ import android.widget.AdapterView.OnItemClickListener;
++import android.widget.AdapterView.OnItemLongClickListener;
+ import android.widget.ArrayAdapter;
+ import android.widget.ListView;
+ 
+ import com.anttek.supernote.model.Note;
++import com.anttek.supernote.model.NoteDBHelper;
+ 
+ public class MainActivity extends Activity implements OnClickListener,
+-		OnItemClickListener {
++		OnItemClickListener, OnItemLongClickListener {
++	private static final int CREATE_NEW_NOTE = 0;
++	private static final int EDIT_NOTE = 1;
++	private static final int CONFIRM_DIALOG = 0;
+ 	private ListView mNoteList;
++	private NoteDBHelper mDBHelper;
++	private Note mLongClickNote;
++
++	// private long mNoteEditedId;
+ 
+ 	@Override
+ 	public void onCreate(Bundle savedInstanceState) {
+ 		super.onCreate(savedInstanceState);
+ 		setContentView(R.layout.activity_main);
+ 
+-		Note[] notes = Note.createTestArray();
+-		ArrayAdapter<Note> adapter = new ArrayAdapter<Note>(this,
+-				R.layout.listitem_note, R.id.text_note_title, notes);
++		// Note[] notes = Note.createTestArray();
++		mDBHelper = new NoteDBHelper(this);
+ 
+ 		this.mNoteList = (ListView) this.findViewById(R.id.list_note);
+-		this.mNoteList.setAdapter(adapter);
++		this.mNoteList.setEmptyView(this.findViewById(android.R.id.empty));
+ 		this.mNoteList.setOnItemClickListener(this);
++		this.mNoteList.setOnItemLongClickListener(this);
+ 
+ 		this.findViewById(R.id.btn_new_note).setOnClickListener(this);
++		setListContent();
+ 	}
+ 
+ 	@Override
+ 	public void onClick(View v) {
+ 		if (v.getId() == R.id.btn_new_note) {
+-			this.startActivity(new Intent(this, NoteEditorActivity.class));
++			this.startActivityForResult(new Intent(this,
++					NoteEditorActivity.class), CREATE_NEW_NOTE);
+ 		}
+ 	}
+ 
+ 	@Override
+ 	public void onItemClick(AdapterView<?> parent, View view, int position,
+-			long id) {		
++			long id) {
+ 		Note note = (Note) parent.getItemAtPosition(position);
+ 		Intent intent = new Intent(this, NoteEditorActivity.class);
++		intent.putExtra(Note._ID, note.getId());
+ 		intent.putExtra(Note.EXTRA_TITLE, note.getTitle());
+ 		intent.putExtra(Note.EXTRA_CONTENT, note.getContent());
+-		this.startActivity(intent);
++
++		this.startActivityForResult(intent, EDIT_NOTE);
++	}
++
++	@Override
++	public boolean onItemLongClick(AdapterView<?> parent, View view,
++			int position, long id) {
++		mLongClickNote = (Note) parent.getItemAtPosition(position);
++		showDialog(CONFIRM_DIALOG);
++		return true;
++	}
++
++	@Override
++	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
++		if (resultCode == RESULT_OK) {
++			String title = data.getStringExtra(Note.EXTRA_TITLE);
++			String content = data.getStringExtra(Note.EXTRA_CONTENT);
++			long id = data.getLongExtra(Note._ID, Note.INVALIDATE_ID);
++			switch (requestCode) {
++			case CREATE_NEW_NOTE:
++				mDBHelper.createNote(new Note(title, content));
++				break;
++			case EDIT_NOTE:
++				mDBHelper.updateNote(new Note(title, content), id);
++				break;
++			}
++			setListContent();
++		}
++		super.onActivityResult(requestCode, resultCode, data);
+ 	}
++
++	@Override
++	protected Dialog onCreateDialog(int id) {
++		switch (id) {
++		case CONFIRM_DIALOG:
++			AlertDialog.Builder builder = new AlertDialog.Builder(this);
++			builder.setMessage(R.string.dialog_title)
++					.setMessage(R.string.dialog_confirm_delete_message)
++					.setCancelable(true)
++					.setPositiveButton(R.string.yes,
++							new DialogInterface.OnClickListener() {
++
++								@Override
++								public void onClick(DialogInterface dialog,
++										int which) {
++									mDBHelper.deleteNote(mLongClickNote);
++									setListContent();
++								}
++							})
++					.setNegativeButton(R.string.no,
++							new DialogInterface.OnClickListener() {
++
++								@Override
++								public void onClick(DialogInterface dialog,
++										int which) {
++									dismissDialog(CONFIRM_DIALOG);
++								}
++							});
++			return builder.create();
++		}
++		return super.onCreateDialog(id);
++	}
++
++	// =============================================================
++
++	private void setListContent() {
++		// create adapter
++		ArrayList<Note> notes = mDBHelper.readAllNote();
++		ArrayAdapter<Note> adapter = new ArrayAdapter<Note>(this,
++				R.layout.listitem_note, R.id.text_note_title, notes);
++		// update listView
++		this.mNoteList.setAdapter(adapter);
++	}
++
+ }
+diff --git a/src/com/anttek/supernote/NoteEditorActivity.java b/src/com/anttek/supernote/NoteEditorActivity.java
+index dfd22a7..cfe2c69 100644
+--- a/src/com/anttek/supernote/NoteEditorActivity.java
++++ b/src/com/anttek/supernote/NoteEditorActivity.java
+@@ -1,6 +1,10 @@
+ package com.anttek.supernote;
+ 
+ import android.app.Activity;
++import android.app.AlertDialog;
++import android.app.Dialog;
++import android.content.DialogInterface;
++import android.content.Intent;
+ import android.os.Bundle;
+ import android.text.TextUtils;
+ import android.view.View;
+@@ -10,8 +14,10 @@ import android.widget.EditText;
+ import com.anttek.supernote.model.Note;
+ 
+ public class NoteEditorActivity extends Activity implements OnClickListener {
++	private static final int ALTER_DIALOG = 0;
+ 	private EditText mTitleEdit;
+ 	private EditText mContentEdit;
++	private long mId;
+ 
+ 	@Override
+ 	protected void onCreate(Bundle savedInstanceState) {
+@@ -23,10 +29,14 @@ public class NoteEditorActivity extends Activity implements OnClickListener {
+ 				.findViewById(R.id.edit_note_content);
+ 
+ 		String noteTitle = this.getIntent().getStringExtra(Note.EXTRA_TITLE);
+-		String noteContent = this.getIntent().getStringExtra(Note.EXTRA_TITLE);
++		String noteContent = this.getIntent()
++				.getStringExtra(Note.EXTRA_CONTENT);
++		mId = this.getIntent().getLongExtra(Note._ID, Note.INVALIDATE_ID);
+ 
+-		if (!TextUtils.isEmpty(noteTitle) && !TextUtils.isEmpty(noteContent)) {
++		if (!TextUtils.isEmpty(noteTitle)) {
+ 			this.mTitleEdit.setText(noteTitle);
++		}
++		if (!TextUtils.isEmpty(noteContent)) {
+ 			this.mContentEdit.setText(noteContent);
+ 		}
+ 
+@@ -36,8 +46,46 @@ public class NoteEditorActivity extends Activity implements OnClickListener {
+ 	@Override
+ 	public void onClick(View v) {
+ 		if (v.getId() == R.id.btn_save_note) {
+-			// Will be implemented later
+-			this.finish();
++			if (TextUtils.isEmpty(mTitleEdit.getText().toString())) {
++				showDialog(ALTER_DIALOG);
++				return;
++			}
++			// TODO Will be implemented later
++			Intent intent = new Intent();
++			intent.putExtra(Note._ID, mId);
++			intent.putExtra(Note.EXTRA_TITLE, mTitleEdit.getText().toString());
++			intent.putExtra(Note.EXTRA_CONTENT, mContentEdit.getText()
++					.toString());
++			setResult(RESULT_OK, intent);
++			finish();
++		}
++	}
++
++	@Override
++	public void onBackPressed() {
++		finish();
++	}
++
++	@Override
++	protected Dialog onCreateDialog(int id) {
++		switch (id) {
++		case ALTER_DIALOG:
++			AlertDialog.Builder builder = new AlertDialog.Builder(this);
++			builder.setMessage(R.string.dialog_title)
++					.setMessage(R.string.dialog_alter_empty_message)
++					.setCancelable(true)
++					.setPositiveButton(android.R.string.yes,
++							new DialogInterface.OnClickListener() {
++
++								@Override
++								public void onClick(DialogInterface dialog,
++										int which) {
++									dismissDialog(ALTER_DIALOG);
++								}
++							});
++			return builder.create();
+ 		}
++		return super.onCreateDialog(id);
+ 	}
++
+ }
+diff --git a/src/com/anttek/supernote/model/Note.java b/src/com/anttek/supernote/model/Note.java
+index 9b14d89..7a248d0 100644
+--- a/src/com/anttek/supernote/model/Note.java
++++ b/src/com/anttek/supernote/model/Note.java
+@@ -1,17 +1,43 @@
+ package com.anttek.supernote.model;
+ 
+-public class Note {
++import android.provider.BaseColumns;
++
++public class Note implements BaseColumns {
++	// support for database
++	public final static String NOTE_TABLE = "NoteTbl";
+ 	public final static String EXTRA_TITLE = "EXTRA_TITLE";
+ 	public final static String EXTRA_CONTENT = "EXTRA_CONTENT";
++	public final static String CREATE_NOTE_TABLE = String
++			.format("CREATE TABLE IF NOT EXISTS %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s TEXT, %s TEXT )",
++					NOTE_TABLE, _ID, EXTRA_TITLE, EXTRA_CONTENT);
++	public final static String[] READ_NOTE_PROJECT = new String[] { _ID,
++			EXTRA_TITLE, EXTRA_CONTENT };
++	public final static String DROP_NOTE_TABLE = String.format(
++			"DROP TABLE IF EXISTS %s", NOTE_TABLE);
++
++	public static final String WHERE_UPDATE = String.format("%s=?", _ID);
++	public static final String WHERE_DELETE = String.format("%s=?", _ID);
++	public static final long INVALIDATE_ID = -1;
++
++	// ======================================================
+ 
++	long mId;
+ 	private String mTitle;
+ 	private String mContent;
+ 
+ 	public Note() {
+-
++		mId = INVALIDATE_ID;
+ 	}
+ 
+ 	public Note(String title, String content) {
++		super();
++		this.mTitle = title;
++		this.mContent = content;
++	}
++
++	Note(long id, String title, String content) {
++		super();
++		mId = id;
+ 		this.mTitle = title;
+ 		this.mContent = content;
+ 	}
+@@ -46,4 +72,8 @@ public class Note {
+ 
+ 		return notes;
+ 	}
++
++	public long getId() {
++		return mId;
++	}
+ }
+diff --git a/src/com/anttek/supernote/model/NoteDBHelper.java b/src/com/anttek/supernote/model/NoteDBHelper.java
+new file mode 100644
+index 0000000..0df6558
+--- /dev/null
++++ b/src/com/anttek/supernote/model/NoteDBHelper.java
+@@ -0,0 +1,75 @@
++package com.anttek.supernote.model;
++
++import java.util.ArrayList;
++
++import android.content.ContentValues;
++import android.content.Context;
++import android.database.Cursor;
++import android.database.sqlite.SQLiteDatabase;
++import android.database.sqlite.SQLiteOpenHelper;
++
++public class NoteDBHelper extends SQLiteOpenHelper {
++	private static final String DATABASE_NAME = "note.db";
++	private static final int DATABASE_VERSION = 1;
++
++	public NoteDBHelper(Context context) {
++		super(context, DATABASE_NAME, null, DATABASE_VERSION);
++	}
++
++	@Override
++	public void onCreate(SQLiteDatabase db) {
++		db.execSQL(Note.CREATE_NOTE_TABLE);
++	}
++
++	@Override
++	public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
++		// TODO upgrade database if possible.
++	}
++
++	public void createNote(Note note) {
++		SQLiteDatabase db = getWritableDatabase();
++		ContentValues values = new ContentValues();
++		values.put(Note.EXTRA_TITLE, note.getTitle());
++		values.put(Note.EXTRA_CONTENT, note.getContent());
++		note.mId = db.insert(Note.NOTE_TABLE, null, values);
++	}
++
++	public void updateNote(Note note, long id) {
++		SQLiteDatabase db = getWritableDatabase();
++		ContentValues values = new ContentValues();
++		values.put(Note.EXTRA_TITLE, note.getTitle());
++		values.put(Note.EXTRA_CONTENT, note.getContent());
++		db.update(Note.NOTE_TABLE, values, Note.WHERE_UPDATE,
++				new String[] { String.valueOf(id) });
++
++	}
++
++	public void deleteNote(Note note) {
++		SQLiteDatabase db = getWritableDatabase();
++		db.delete(Note.NOTE_TABLE, Note.WHERE_DELETE,
++				new String[] { String.valueOf(note.getId()) });
++
++	}
++
++	public ArrayList<Note> readAllNote() {
++		SQLiteDatabase db = getReadableDatabase();
++		ArrayList<Note> tmp = new ArrayList<Note>();
++
++		Cursor c = db.query(Note.NOTE_TABLE, Note.READ_NOTE_PROJECT, null,
++				null, null, null, null);
++		if (c.moveToFirst()) {
++			do {
++				long id = c.getLong(c.getColumnIndex(Note._ID));
++				String title = c.getString(c.getColumnIndex(Note.EXTRA_TITLE));
++				String content = c.getString(c
++						.getColumnIndex(Note.EXTRA_CONTENT));
++
++				Note tmpnote = new Note(id, title, content);
++				tmp.add(tmpnote);
++			} while (c.moveToNext());
++		}
++		c.close();
++
++		return tmp;
++	}
++}
