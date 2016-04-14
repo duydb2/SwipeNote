@@ -1,5 +1,10 @@
 # .gitignore file
 #################################
+#### cusomtize
+/leveldb
+/ref
+
+
 #### clojure
 /target
 /classes

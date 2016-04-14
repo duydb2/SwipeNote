@@ -14,6 +14,7 @@ vars = {
 # behind proxies.
 deps = {
   'leveldb':'https://github.com/google/leveldb.git@master',
+  'ref/ReactiveViewModelTodo': 'https://github.com/YMC-Mobile/ReactiveViewModelTodo.git',
 }
 
 deps_os = {
