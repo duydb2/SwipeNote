@@ -4,7 +4,10 @@
 # instead.
 
 vars = {
- 'version' : '0.1'
+  'version' : '0.1',
+  'extra_gyp_flag': '-Dextra_gyp_flag=0',
+  'chromium_git': 'https://chromium.googlesource.com',
+  'chromium_revision': 'ba603a096944e16f5ac757c2a513b01a080cb3db',
 }
 
 # NOTE: Use http rather than https; the latter can cause problems for users
